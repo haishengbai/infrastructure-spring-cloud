@@ -6,3 +6,8 @@ server:
 spring:
   application:
     name: infrastructure-springcloud-oauth2-server
+
+soundai:
+  oauth2:
+    token:
+      store: jwt

@@ -1,21 +1,13 @@
-package com.soundai.infrastructure.springcloud.oauth2.server.config;
+package com.soundai.infrastructure.springcloud.oauth2.resource.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.provider.token.TokenStore;
-import org.springframework.security.oauth2.provider.token.store.InMemoryTokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
 
-/**
- * 令牌配置
- */
 @Configuration
 public class AccessTokenConfig {
-
-    @Value("${soundai.oauth2.token.store}")
-    private String tokenStore;
 
     /**
      * JWT的秘钥
@@ -27,16 +19,9 @@ public class AccessTokenConfig {
      * 令牌的存储策略
      */
     @Bean
-    TokenStore tokenStore() {
-        if ("inMemory".equals(tokenStore)) {
-            // todo 方便测试，使用内存存储策略，一旦服务重启令牌失效，后续可以使用数据库存储或者JWT
-            return new InMemoryTokenStore();
-        }
-        if ("jwt".equals(tokenStore)) {
-        // 使用JwtTokenStore生成JWT令牌
-            return new JwtTokenStore(jwtAccessTokenConverter());
-        }
-        return null;
+    public TokenStore tokenStore() {
+        //使用JwtTokenStore生成JWT令牌
+        return new JwtTokenStore(jwtAccessTokenConverter());
     }
 
     /**

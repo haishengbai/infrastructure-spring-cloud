@@ -1,5 +1,8 @@
 package com.soundai.infrastructure.springcloud.oauth2.server.config;
 
+import com.soundai.infrastructure.springcloud.oauth2.server.exception.OAuthServerAuthenticationEntryPoint;
+import com.soundai.infrastructure.springcloud.oauth2.server.exception.OAuthServerWebResponseExceptionTranslator;
+import com.soundai.infrastructure.springcloud.oauth2.server.filter.OAuthServerClientCredentialsTokenEndpointFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +20,7 @@ import org.springframework.security.oauth2.provider.code.InMemoryAuthorizationCo
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
 import org.springframework.security.oauth2.provider.token.TokenStore;
+import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 
 /**
  * @认证中心
@@ -38,24 +42,36 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
     @Autowired
     private ClientDetailsService clientDetailsService;
 
+    @Autowired
+    private JwtAccessTokenConverter jwtAccessTokenConverter;
+
     /**
      * Security的认证管理器，密码模式需要用到
      */
     @Autowired
     private AuthenticationManager authenticationManager;
 
+    @Autowired
+    private OAuthServerAuthenticationEntryPoint authenticationEntryPoint;
+
     /**
      * 配置令牌访问的安全约束, 比如/oauth/token 对哪些开放
      */
     @Override
     public void configure(AuthorizationServerSecurityConfigurer security) {
+        //自定义ClientCredentialsTokenEndpointFilter，用于处理客户端id，密码错误的异常
+        OAuthServerClientCredentialsTokenEndpointFilter endpointFilter = new OAuthServerClientCredentialsTokenEndpointFilter(security,authenticationEntryPoint);
+        endpointFilter.afterPropertiesSet();
+        security.addTokenEndpointAuthenticationFilter(endpointFilter);
+
         security
                 //开启/oauth/token_key验证端口权限访问
                 .tokenKeyAccess("permitAll()")
                 //开启/oauth/check_token验证端口认证权限访问
-                .checkTokenAccess("permitAll()")
+                .checkTokenAccess("permitAll()");
                 //表示支持 client_id 和 client_secret 做登录认证
-                .allowFormAuthenticationForClients();
+        //一定不要添加allowFormAuthenticationForClients，否则自定义的OAuthServerClientCredentialsTokenEndpointFilter不生效
+//                .allowFormAuthenticationForClients();
     }
 
     /**
@@ -88,6 +104,8 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
     @Override
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
         endpoints
+                //设置异常WebResponseExceptionTranslator，用于处理用户名，密码错误、授权类型不正确的异常
+                .exceptionTranslator(new OAuthServerWebResponseExceptionTranslator())
                 //授权码模式所需要的authorizationCodeServices
                 .authorizationCodeServices(authorizationCodeServices())
                 //密码模式所需要的authenticationManager
@@ -114,6 +132,7 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
         services.setAccessTokenValiditySeconds(60 * 60 * 2);
         //refresh_token的过期时间
         services.setRefreshTokenValiditySeconds(60 * 60 * 24 * 3);
+        services.setTokenEnhancer(jwtAccessTokenConverter);
         return services;
     }
 
